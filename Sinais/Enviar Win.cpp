@@ -3,23 +3,9 @@
 #include <string>
 #include <cstdlib>
 
+int n_eventos = 10;
 
-int main(int argc, char* argv[])
-{
-    if (argc != 3)
-    {
-        std::cerr << "Uso: "
-                  << argv[0]
-                  << " <PID> <SINAL>"
-                  << std::endl;
-
-        return 1;
-    }
-
-
-    DWORD pid = static_cast<DWORD>(std::atoi(argv[1]));
-    int sinal = std::atoi(argv[2]);
-
+int enviar(int pid, int sinal){
 
     if (pid == 0)
     {
@@ -30,9 +16,9 @@ int main(int argc, char* argv[])
     }
 
 
-    if (sinal < 1 || sinal > 3)
+    if (sinal < 0 || sinal > n_eventos-1)
     {
-        std::cerr << "Erro: o sinal deve ser 1, 2 ou 3."
+        std::cerr << "Erro: o sinal deve ser entre 0 e 9."
                   << std::endl;
 
         return 1;
@@ -110,4 +96,19 @@ int main(int argc, char* argv[])
     CloseHandle(evento);
 
     return 0;
+}
+
+int main(){
+    int pid = 0;
+    int sinal = 1;
+
+    std::cout << "Digite o PID do alvo: ";
+    std::cin >> pid;
+
+    while (sinal!=0){
+        std::cout << "Digite o sinal (use 0 para fechar): ";
+        std::cin >> sinal;
+
+        enviar(pid, sinal);
+    }
 }

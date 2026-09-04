@@ -1,0 +1,1 @@
+g++ teste.cpp -o teste.exe
