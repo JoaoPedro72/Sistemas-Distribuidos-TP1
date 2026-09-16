@@ -7,6 +7,90 @@
 - Augusto Soares
 - Gabriel Jovenal
 
+## Estrutura
+
+| Pasta | Parte | Conteúdo |
+|---|---|---|
+| `Sinais/` | 2 | `Enviar Linux.cpp`, `Receber Linux.cpp` (+ versões Windows, que simulam sinais com Events) |
+| `Pipes/` | 3 | `main linux.cpp` (mesma lógica em C: `main linux.c`) |
+| `Semaforos/` | 4 | `prodcons_sem.cpp`, `scripts/`, `resultados/` |
+
+## Compilação
+
+```bash
+make            # compila as três partes em bin/
+make limpar     # remove bin/
+```
+
+A parte 4 exige g++ >= 11 (`<semaphore>`, C++20). As versões Windows da parte 2 saem de `Sinais/compileWin.bat`.
+
+## Execução
+
+### Parte 2 — Sinais
+
+```bash
+./bin/receber blocking          # espera bloqueante (ou: busy)
+./bin/enviar <PID> <SINAL>      # ex.: ./bin/enviar 4231 10
+```
+
+`receber` captura SIGUSR1 (10), SIGUSR2 (12) e SIGINT (2); SIGINT encerra o processo. `kill -USR1 <PID>` também funciona. `enviar` retorna erro se o PID não existir.
+
+### Parte 3 — Pipes
+
+```bash
+./bin/pipes <quantidade>        # ex.: ./bin/pipes 1000
+```
+
+O pai produz e o filho consome pelo pipe anônimo; cada número vai como string de 20 bytes e o 0 final encerra o consumidor.
+
+### Parte 4 — Produtor-Consumidor com semáforos
+
+```bash
+./bin/prodcons_sem <N> <Np> <Nc> [-m M] [--silencioso] [--ocupacao ARQ]
+```
+
+| Parâmetro | Significado |
+|---|---|
+| `N` | tamanho do vetor compartilhado (buffer circular) |
+| `Np` / `Nc` | número de threads produtoras / consumidoras |
+| `-m M` | quantos números consumir (padrão `100000`) |
+| `--silencioso` | não imprime o resultado de cada número |
+| `--ocupacao ARQ` | grava a ocupação do buffer após cada operação |
+
+```bash
+./bin/prodcons_sem 10 2 4 -m 20         # demonstração curta, com impressão
+./bin/prodcons_sem 100 1 8 --silencioso
+```
+
+Cada execução termina com uma linha em formato fixo, lida pelos scripts:
+
+```
+N=100 Np=2 Nc=4 M=100000 primos=6820 TEMPO_MS=59.335
+```
+
+**Sincronização:** três semáforos — `vazias` (inicia em N, conta posições livres), `cheias` (inicia em 0, conta posições ocupadas) e `mutex` (binário, serializa o acesso ao vetor). O semáforo contador é sempre adquirido antes do mutex; na ordem inversa uma thread dormiria segurando o mutex e travaria as demais. O término usa dois contadores atômicos, que garantem exatamente M produções e M consumos — assim nenhuma thread fica presa num `acquire()` no fim.
+
+## Estudo de caso (parte 4)
+
+```bash
+bash Semaforos/scripts/estudo_caso.sh        # 4 valores de N x 7 combinações x 10 execuções
+python3 Semaforos/scripts/gera_graficos.py   # gráficos e tabela
+```
+
+Saídas em `Semaforos/resultados/`:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `tempos.csv` | tempo de cada execução individual |
+| `tempos_medios.csv` | média e desvio padrão por cenário |
+| `tempo_medio.png` | tempo médio × combinação de threads, uma curva por N |
+| `ocupacao.png` | ocupação do buffer ao longo do tempo, 28 cenários |
+| `ocupacao/*.txt` | histórico bruto de ocupação (não versionado) |
+
+---
+
+# Enunciado
+
 ## 1 - Objetivos
 
 O objetivo deste trabalho é se familiarizar com os principais mecanismos de
@@ -105,4 +189,4 @@ buffer compartilhado ao longo do tempo. Para gerar o gráfico, utilize um
 vetor que armazena a ocupação do buffer após cada operação de produção
 ou consumo. Ao final, use o vetor para gerar o gráfico (ou arquivo).
 
-O que você pode concluir em cada um dos casos?
+O que você pode concluir em cada um dos casos?
