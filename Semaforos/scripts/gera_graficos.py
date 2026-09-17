@@ -61,30 +61,49 @@ def grafico_tempos(dados):
     estilo(ax)
 
     x = np.arange(len(COMBOS))
-    for i, N in enumerate(VALORES_N):
+    curvas, desvios_por_N = [], []
+    for N in VALORES_N:
         medias, desvios = [], []
         for combo in COMBOS:
             amostras = dados.get((N,) + combo, [])
             medias.append(np.mean(amostras) if amostras else np.nan)
             desvios.append(np.std(amostras) if amostras else 0.0)
-        medias = np.array(medias)
+        curvas.append(np.array(medias))
+        desvios_por_N.append(np.array(desvios))
+    curvas = np.array(curvas)
+
+    # Onde ancorar o rotulo de cada curva: no ponto em que ela fica mais longe
+    # das demais, medindo em escala log (a do eixo). Ancorar sempre no ultimo
+    # ponto empilha os rotulos de N=10, 100 e 1000 uns sobre os outros, porque
+    # as tres curvas convergem na direita.
+    with np.errstate(invalid="ignore"):
+        log = np.log10(curvas)
+    ancora = []
+    for i in range(len(VALORES_N)):
+        outras = np.delete(log, i, axis=0)
+        dist = np.nanmin(np.abs(outras - log[i]), axis=0)
+        ancora.append(int(np.nanargmax(dist)))
+
+    for i, N in enumerate(VALORES_N):
         cor = SERIES[i]
-        ax.errorbar(x, medias, yerr=desvios, color=cor, linewidth=2.0,
+        ax.errorbar(x, curvas[i], yerr=desvios_por_N[i], color=cor, linewidth=2.0,
                     marker="o", markersize=6, markeredgecolor=SURFACE,
                     markeredgewidth=1.2, elinewidth=0.9, capsize=2.5,
                     ecolor=cor, alpha=0.95, label="N = {}".format(N), zorder=3)
-        # Rotulo direto no fim da curva: tres dos quatro tons ficam abaixo de
-        # 3:1 de contraste com o fundo, entao a identidade da serie nao pode
-        # depender apenas da cor.
-        if not np.isnan(medias[-1]):
-            ax.annotate("N = {}".format(N), xy=(x[-1], medias[-1]),
-                        xytext=(7, 0), textcoords="offset points",
-                        va="center", ha="left", fontsize=9, color=INK)
+        # Rotulo direto na curva: tres dos quatro tons ficam abaixo de 3:1 de
+        # contraste com o fundo, entao a identidade da serie nao pode depender
+        # apenas da cor.
+        j = ancora[i]
+        if not np.isnan(curvas[i][j]):
+            ax.annotate("N = {}".format(N), xy=(x[j], curvas[i][j]),
+                        xytext=(0, 10), textcoords="offset points",
+                        va="bottom", ha="center", fontsize=9, color=INK,
+                        zorder=4)
 
     ax.set_yscale("log")
     ax.set_xticks(x)
     ax.set_xticklabels(ROTULOS)
-    ax.set_xlim(-0.35, len(COMBOS) + 0.35)
+    ax.set_xlim(-0.35, len(COMBOS) - 1 + 0.35)
     ax.set_xlabel("combinação produtor/consumidor (Np/Nc)",
                   color=INK2, fontsize=10)
     ax.set_ylabel("tempo médio de execução (ms, escala log)",

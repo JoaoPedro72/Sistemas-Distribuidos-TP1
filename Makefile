@@ -4,7 +4,7 @@
 #   make            compila tudo
 #   make sinais     parte 2
 #   make pipes      parte 3
-#   make semaforos  parte 4 (requer g++ >= 11, cabecalho <semaphore> do C++20)
+#   make semaforos  parte 4
 #   make limpar     remove bin/
 #
 # As versoes Windows da parte 2 sao compiladas por Sinais/compileWin.bat.
@@ -32,7 +32,7 @@ $(BIN)/pipes: Pipes/main\ linux.cpp | $(BIN)
 	$(CXX) $(CXXFLAGS) -std=c++17 -o $@ "$<"
 
 $(BIN)/prodcons_sem: Semaforos/prodcons_sem.cpp | $(BIN)
-	$(CXX) $(CXXFLAGS) -std=c++20 -pthread -o $@ $<
+	$(CXX) $(CXXFLAGS) -std=c++17 -pthread -o $@ $<
 
 limpar:
 	rm -rf $(BIN)

@@ -22,7 +22,7 @@ make            # compila as três partes em bin/
 make limpar     # remove bin/
 ```
 
-A parte 4 exige g++ >= 11 (`<semaphore>`, C++20). As versões Windows da parte 2 saem de `Sinais/compileWin.bat`.
+Tudo compila com C++17; a parte 4 usa semáforos POSIX (`sem_t`). As versões Windows da parte 2 saem de `Sinais/compileWin.bat`.
 
 ## Execução
 

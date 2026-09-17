@@ -14,6 +14,12 @@
 //     --ocupacao <arq>  registra a ocupacao do buffer apos cada operacao e
 //                       grava o historico em <arq>, um valor por linha
 //
+// Os semaforos sao os do POSIX (sem_t). A primeira versao usava
+// std::counting_semaphore do C++20, mas a implementacao da libstdc++ perde
+// notificacoes (lost wakeup) e o programa trava de forma intermitente: o
+// contador fica em 1, o mutex livre, e o consumidor segue dormindo em
+// futex_wait dentro de acquire(). Com sem_t o problema desaparece.
+//
 // Sincronizacao (esquema classico visto em aula):
 //   vazias  - semaforo contador, inicia em N: quantas posicoes livres existem
 //   cheias  - semaforo contador, inicia em 0: quantas posicoes ocupadas existem
@@ -25,6 +31,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -33,7 +40,7 @@
 #include <iostream>
 #include <mutex>
 #include <random>
-#include <semaphore>
+#include <semaphore.h>
 #include <string>
 #include <thread>
 #include <vector>
@@ -54,6 +61,23 @@ bool eh_primo(int n) {
     return true;
 }
 
+// Semaforo contador sobre sem_t do POSIX, com a mesma interface que o codigo
+// ja usava (acquire/release), para nao espalhar a mudanca pelo resto do arquivo.
+class Semaforo {
+public:
+    explicit Semaforo(unsigned int inicial) { sem_init(&s_, 0, inicial); }
+    ~Semaforo() { sem_destroy(&s_); }
+    Semaforo(const Semaforo&) = delete;
+    Semaforo& operator=(const Semaforo&) = delete;
+
+    // sem_wait pode voltar por causa de um sinal; nesse caso espera de novo.
+    void acquire() { while (sem_wait(&s_) == -1 && errno == EINTR) {} }
+    void release() { sem_post(&s_); }
+
+private:
+    sem_t s_;
+};
+
 // Memoria compartilhada protegida por semaforos.
 // O vetor e usado como buffer circular; 'vazias' e 'cheias' fazem o bloqueio
 // das threads quando ele esta cheio ou vazio, e 'mutex' serializa o acesso.
@@ -63,7 +87,7 @@ public:
                         std::size_t reserva_historico)
         : buf_(capacidade),
           capacidade_(capacidade),
-          vazias_(static_cast<std::ptrdiff_t>(capacidade)),
+          vazias_(static_cast<unsigned int>(capacidade)),
           cheias_(0),
           registrar_(registrar_ocupacao) {
         if (registrar_) historico_.reserve(reserva_historico);
@@ -102,9 +126,9 @@ private:
     std::size_t ocupadas_ = 0;  // so para o historico; quem conta de verdade
                                 // sao os semaforos
 
-    std::counting_semaphore<> vazias_;
-    std::counting_semaphore<> cheias_;
-    std::binary_semaphore mutex_{1};
+    Semaforo vazias_;
+    Semaforo cheias_;
+    Semaforo mutex_{1};
 
     bool registrar_;
     std::vector<std::uint32_t> historico_;
